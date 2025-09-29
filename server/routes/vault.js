@@ -65,24 +65,30 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Get single item (DEMO: optional decryption provided if client supplies masterPassword)
-router.get('/:id', auth, async (req, res) => {
+// POST /api/vault/:id/view
+router.post('/:id/view', auth, async (req, res) => {
   try {
+    const { masterPassword } = req.body;
+    if (!masterPassword) return res.status(400).json({ error: 'masterPassword is required' });
+
     const item = await VaultItem.findOne({ _id: req.params.id, user: req.user._id });
     if (!item) return res.status(404).json({ error: 'Not found' });
 
     const encrypted = JSON.parse(item.encrypted);
-    const masterPassword = req.query.masterPassword; // demo only
-    if (masterPassword) {
-      try {
-        const plain = decrypt(encrypted, masterPassword);
-        return res.json({ item: { id: item._id, label: item.label, username: item.username, passwordPlain: plain } });
-      } catch (err) {
-        return res.status(400).json({ error: 'Decryption failed. Wrong masterPassword?' });
-      }
-    }
 
-    return res.json({ item: { id: item._id, label: item.label, username: item.username, encrypted } });
+    try {
+      const plain = decrypt(encrypted, masterPassword);
+      return res.json({
+        item: {
+          id: item._id,
+          label: item.label,
+          username: item.username,
+          passwordPlain: plain
+        }
+      });
+    } catch (err) {
+      return res.status(400).json({ error: 'Decryption failed. Wrong master password.' });
+    }
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Server error' });
