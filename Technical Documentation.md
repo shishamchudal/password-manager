@@ -266,6 +266,7 @@ To better understand how SecureVault processes requests, the following simplifie
    ▼
 [Frontend: Display confirmation message]
 ```
+![image](/images/password_creation_flow.png)
 
 ### **7.2 Password Retrieval Flow**
 
@@ -287,6 +288,7 @@ To better understand how SecureVault processes requests, the following simplifie
    ▼
 [Frontend: Display masked password to user]
 ```
+![image](/images/password_retrival_flow.png)
 
 This secure flow ensures that sensitive data is **encrypted at rest**, **transmitted securely**, and **never exposed** outside the controlled environment.
 
