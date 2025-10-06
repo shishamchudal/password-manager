@@ -1,9 +1,13 @@
 # **SecureVault: Self-Hosted Password Management System**
 
 **Technical Documentation**
+
 Prepared by: Shisham Chudal
+
 Westcliff University – CAP 490 Capstone Project
+
 Version 1.0
+
 October 5, 2025
 
 ---
@@ -305,3 +309,16 @@ SecureVault uses **JWT-based authentication** to maintain stateless sessions. Th
 5. **Expiration & Renewal:** Tokens expire after a set period (e.g., 1 hour) and require re-authentication for continued access.
 
 This approach eliminates the need for traditional server-side sessions and enhances scalability while maintaining strong security controls.
+
+Entity relationship diagram.
+![image](/images/Entity%20Relationship%20Diagram.png)
+
+https://www.mongomodeler.com/editor.html
+
+Sequence diagram\
+already done
+
+Data flow diagram.
+
+
+Flow chart.
