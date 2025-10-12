@@ -321,5 +321,397 @@ already done
 Data flow diagram.
 ![image](/images/Data%20Flow%20Diagram.png)
 
+## **9. Encryption and Decryption Engine**
 
-Flow chart.
+The **encryption engine** is the most critical component of SecureVault. Its purpose is to ensure that sensitive passwords are never stored or transmitted in plaintext. Instead, all credential data is encrypted on the server using strong cryptographic methods before being saved in the database.
+
+SecureVault uses the **Advanced Encryption Standard (AES-256)** in **Galois/Counter Mode (GCM)**. This algorithm is known for its combination of strong security and high performance. It uses a 256-bit key to encrypt and decrypt data, and it provides **confidentiality**, **integrity**, and **authenticity** of the stored information.
+
+---
+
+### **9.1 Encryption Model**
+
+Each user’s passwords are encrypted with a **unique encryption key derived from their master password**. This design ensures that:
+
+* Even if the database is compromised, the attacker cannot decrypt any passwords without knowing the user’s master password.
+* Each vault item is encrypted separately, making attacks significantly harder.
+
+SecureVault does not store the master password anywhere. Instead, it derives an encryption key using a **Key Derivation Function (KDF)** such as **PBKDF2** with a random **salt**. This makes brute-force attacks computationally expensive and time-consuming.
+
+---
+
+### **9.2 Encryption Workflow**
+
+Here’s how the encryption process works in SecureVault:
+
+1. **User Input:**
+   The user provides their **master password** and the plaintext password to be stored.
+
+2. **Key Derivation:**
+   The system uses **PBKDF2** (Password-Based Key Derivation Function 2) to derive a unique encryption key from the master password and a randomly generated salt.
+
+3. **AES Encryption:**
+   The plaintext password is encrypted using **AES-256-GCM**, which produces three key values:
+
+   * **Ciphertext:** The encrypted password.
+   * **IV (Initialization Vector):** A random value that ensures unique encryption each time.
+   * **Auth Tag:** A code used to verify that the data hasn’t been modified.
+
+4. **Storage:**
+   The encrypted data, along with the IV, salt, and authentication tag, is stored in MongoDB.
+
+### **Encryption Example (Simplified)**
+
+```
+Input:
+  Plaintext password: "MyBank@123"
+  Master password: "M@ster!Key"
+
+Derived Key (via PBKDF2 + salt):
+  e7acfb0b5a49b9f1a7e0... (256 bits)
+
+Encrypted Data (AES-256-GCM):
+  {
+    ciphertext: "cd8f3a5b3c2...",
+    iv: "4d2f3b...",
+    tag: "a1b2c3...",
+    salt: "8d1e..."
+  }
+
+Stored in database:
+  {
+    user_id: 12345,
+    label: "Bank Account",
+    username: "user@gmail.com",
+    encrypted: {
+      ciphertext, iv, tag, salt
+    }
+  }
+```
+
+---
+
+### **9.3 Decryption Workflow**
+
+When a user wants to view a stored password, SecureVault performs the reverse process:
+
+1. The user provides their **master password**.
+2. The system retrieves the stored **encrypted object** (ciphertext, IV, salt, tag).
+3. It regenerates the encryption key using the same PBKDF2 process.
+4. AES-256 decrypts the ciphertext to restore the original plaintext password.
+
+If the wrong master password is provided, the decryption process fails, ensuring the vault remains secure.
+
+---
+
+### **9.4 Security Highlights**
+
+* **End-to-End Protection:** No password is ever transmitted or stored in plaintext.
+* **Key Isolation:** Each vault item has its own unique encryption parameters.
+* **Tamper Resistance:** AES-GCM’s authentication tag detects any data alteration.
+* **Data Privacy:** Without the master password, even system administrators cannot decrypt user data.
+
+---
+
+## **10. Data Lifecycle and Flow**
+
+Below is the step-by-step flow of how data moves through the system.
+
+```
+[User Input]
+   │
+   ▼
+[Frontend: Sends encrypted password blob or master password for encryption]
+   │ HTTPS (secured with TLS)
+   ▼
+[Backend: Encrypts using AES-256 + master password key]
+   │
+   ▼
+[Database: Stores encrypted JSON object]
+   │
+   ▼
+[User Requests View]
+   │
+   ▼
+[Backend: Decrypts using master password]
+   │
+   ▼
+[Frontend: Displays decrypted password securely (masked by default)]
+```
+
+This ensures that **only the authenticated user** can decrypt and access their own passwords, even within the organization’s network.
+
+---
+
+## **11. Descriptive API Documentation**
+
+The SecureVault API is designed to be secure and intuitive, allowing the frontend application to communicate with the backend via **RESTful HTTPS endpoints**. Every request requires a valid **JWT token** to ensure the user is authenticated.
+
+Below is a **non-technical, descriptive overview** of each major API endpoint.
+
+---
+
+### **11.1 Create Vault Item**
+
+**Endpoint:** `POST /api/vault/`
+**Purpose:** Adds a new password entry to the user’s vault.
+**What it does:**
+The frontend sends an encrypted object (ciphertext, iv, tag, salt) to the backend, along with optional metadata like `label` and `username`. The backend stores this encrypted data in the database.
+
+**Inputs:**
+
+* `label` – A label for the password (e.g., “Gmail”).
+* `username` – The account username.
+* `encrypted` – The AES-encrypted data object.
+
+**Response:**
+Confirmation that the item was stored successfully.
+
+---
+
+### **11.2 Create Vault Item (Demo Encryption)**
+
+**Endpoint:** `POST /api/vault/create-demo-encrypt`
+**Purpose:** Used in testing or demo mode.
+**What it does:**
+The user provides a plaintext password and master password; the backend encrypts it before storing.
+
+**Inputs:**
+
+* `label` – Password label.
+* `username` – Account username.
+* `passwordPlain` – Plaintext password (for demo use only).
+* `masterPassword` – Used to derive encryption key.
+
+**Response:**
+Returns confirmation and the encrypted object stored.
+
+---
+
+### **11.3 Get All Vault Items**
+
+**Endpoint:** `GET /api/vault/`
+**Purpose:** Retrieves all saved vault entries for the authenticated user.
+**What it does:**
+The backend fetches each encrypted entry and returns it with metadata (label, username, timestamps). Passwords remain encrypted.
+
+**Response:**
+A list of items containing their labels, usernames, and encrypted blobs.
+
+---
+
+### **11.4 View Decrypted Password**
+
+**Endpoint:** `POST /api/vault/:id/view`
+**Purpose:** Displays the decrypted password for a specific item.
+**What it does:**
+The backend decrypts the password using the master password provided in the request and returns the plaintext password temporarily.
+
+**Inputs:**
+
+* `masterPassword` – Used for decryption.
+
+**Response:**
+Decrypted password for that specific vault item.
+
+---
+
+### **11.5 Update Vault Item**
+
+**Endpoint:** `PUT /api/vault/:id`
+**Purpose:** Updates existing password metadata or replaces its encrypted blob.
+**What it does:**
+The user can modify the label, username, or upload a newly encrypted password.
+
+**Response:**
+Updated record confirmation.
+
+---
+
+### **11.6 Delete Vault Item**
+
+**Endpoint:** `DELETE /api/vault/:id`
+**Purpose:** Permanently deletes a vault entry.
+**What it does:**
+Removes the encrypted record from the database.
+
+**Response:**
+Confirmation message: `"Deleted"`.
+
+---
+
+## **12. Deployment Plan**
+
+The deployment of **SecureVault** is designed to be flexible and secure, supporting both **cloud-based (AWS)** and **self-hosted** environments. The deployment approach focuses on maintaining data confidentiality, ensuring system reliability, and minimizing downtime.
+
+---
+
+### **12.1 Deployment Options**
+
+#### **A. Cloud Deployment (AWS)**
+
+Hosting SecureVault on **Amazon Web Services (AWS)** provides scalability, reliability, and security. The core services involved include:
+
+* **Amazon EC2 (Elastic Compute Cloud):**
+  Used to host the Node.js/Express backend and serve the React/Vue.js frontend. EC2 instances can be configured with Linux distributions (e.g., Ubuntu Server) for maximum compatibility.
+
+* **Amazon S3 (Simple Storage Service):**
+  Stores static frontend assets such as JavaScript bundles, CSS, and images, allowing efficient content delivery.
+
+* **Amazon VPC (Virtual Private Cloud):**
+  Provides a secure, isolated environment for backend and database servers, ensuring restricted access through subnets and firewalls.
+
+* **MongoDB Atlas or EC2-hosted MongoDB:**
+  Manages the database layer with encryption at rest and automated backups.
+
+* **AWS Certificate Manager (ACM):**
+  Provides **SSL/TLS certificates** for HTTPS encryption, securing all communication between client and server.
+
+* **AWS CloudWatch:**
+  Monitors server metrics, performance, and logs for proactive issue detection.
+
+#### **B. Self-Hosted Deployment (On-Premises)**
+
+Organizations with strict data control policies may opt for on-premises hosting. In this configuration:
+
+* SecureVault runs on an internal server or private data center.
+* Access is limited to users within the corporate network.
+* Administrators maintain direct control of backups, updates, and security configurations.
+
+Self-hosting provides full data sovereignty, making it ideal for organizations with regulatory or compliance requirements.
+
+---
+
+### **12.2 Deployment Steps (AWS)**
+
+The high-level deployment process is as follows:
+
+1. **Server Setup:**
+   Launch an AWS EC2 instance and install Node.js, MongoDB, and Nginx (for reverse proxy and HTTPS redirection).
+
+2. **Environment Configuration:**
+   Define environment variables in a `.env` file, including:
+
+   * `JWT_SECRET` – Used to sign authentication tokens.
+   * `DB_URI` – MongoDB connection string.
+   * `ENCRYPTION_SECRET` – Key seed used in PBKDF2 key derivation.
+   * `PORT` – Application port (default: 8080).
+
+3. **Source Deployment:**
+   Clone the SecureVault repository and install dependencies using `npm install`.
+   Build the frontend with `npm run build` and serve it through Express or Nginx.
+
+4. **SSL Configuration:**
+   Use AWS Certificate Manager to issue an SSL certificate. Update the Nginx configuration to redirect all HTTP traffic to HTTPS.
+
+5. **Testing & Monitoring:**
+   Conduct end-to-end testing to verify authentication, encryption, and CRUD functionalities.
+   Enable CloudWatch metrics for CPU, memory, and network usage.
+
+---
+
+### **12.3 Backup and Disaster Recovery**
+
+To ensure data integrity and business continuity, the following backup strategies are employed:
+
+* **Automated Backups:** MongoDB performs daily backups with retention policies.
+* **Snapshot Backups:** Weekly EC2 instance snapshots are stored in Amazon S3.
+* **Disaster Recovery:** In case of a server failure, backups can be restored to a new instance within minutes.
+* **Encryption:** Backups are encrypted both at rest and during transmission.
+
+---
+
+## **13. Maintenance and Monitoring**
+
+Maintaining SecureVault is essential to ensure long-term reliability and security. The maintenance plan includes the following key aspects:
+
+### **13.1 Regular Security Updates**
+
+* Periodically update all dependencies (`npm audit fix`).
+* Apply security patches for Node.js, MongoDB, and third-party libraries.
+* Renew SSL/TLS certificates before expiration.
+
+### **13.2 Performance Monitoring**
+
+* Use **AWS CloudWatch** or **PM2 monitoring** to track CPU load, memory usage, and request latency.
+* Implement alerting systems to notify administrators of abnormal activity.
+
+### **13.3 Data Management**
+
+* Schedule automated backups for the MongoDB database.
+* Verify backup integrity through regular restoration tests.
+* Apply data retention policies to remove outdated or unnecessary records.
+
+### **13.4 User Support and Troubleshooting**
+
+* Maintain an internal wiki or documentation page for common troubleshooting steps.
+* Provide clear guidance for users in cases of forgotten master passwords (without compromising security).
+
+---
+
+## **14. Scalability**
+
+SecureVault’s architecture supports horizontal scaling, allowing it to handle growing user demand efficiently.
+
+### **14.1 Horizontal Scaling**
+
+* Multiple backend servers can run in parallel behind an **AWS Elastic Load Balancer (ELB)**.
+* Each backend instance is stateless — JWT tokens eliminate the need for shared session storage.
+* MongoDB replica sets provide redundancy and read scalability.
+
+### **14.2 Database Scalability**
+
+* MongoDB’s sharding capability can be implemented to distribute data across multiple nodes.
+* As the number of users increases, additional shards can be added seamlessly.
+
+### **14.3 Caching and Optimization**
+
+* Implement caching using **Redis** or **in-memory storage** for frequently accessed metadata.
+* Optimize queries to minimize database load.
+
+This scalability design ensures that SecureVault remains responsive even as the user base expands across hundreds or thousands of accounts.
+
+---
+
+## **15. Future Enhancements**
+
+While SecureVault provides a secure and functional password management foundation, several enhancements are planned for future versions:
+
+1. **Browser Extension Integration:**
+   Develop Chrome and Firefox extensions that allow direct autofill and password capture within browsers.
+
+2. **Biometric Authentication:**
+   Add fingerprint and facial recognition support for faster and more secure logins.
+
+3. **Password Breach Detection:**
+   Integrate APIs like **Have I Been Pwned** to detect compromised credentials.
+
+4. **Enhanced Reporting:**
+   Provide password strength analytics and password reuse alerts for end-users.
+
+5. **Multi-Tenancy:**
+   Extend SecureVault to serve multiple organizations under one instance, with isolated data and branding.
+
+These features will enhance both usability and overall security posture in future versions.
+
+---
+
+## **16. Conclusion**
+
+The **SecureVault: Self-Hosted Password Management System** provides a robust, scalable, and user-friendly solution for managing sensitive credentials within an organization. Its **AES-256 encryption**, **JWT-based authentication**, and **self-hosted flexibility** give businesses full control over their data while maintaining industry-grade security standards.
+
+By enabling organizations to host their password management solution independently, SecureVault eliminates dependency on third-party platforms, reduces subscription costs, and enhances data privacy. The combination of a clean user interface, strong cryptographic foundations, and modular architecture ensures that the system is both secure and approachable for non-technical users.
+
+Future developments — such as browser extensions, biometric authentication, and breach detection — will continue to strengthen SecureVault’s role as a trusted enterprise-grade password management platform for small to medium-sized organizations.
+
+---
+
+### **References**
+
+Anderson, R. (2020). *Security engineering: A guide to building dependable distributed systems* (3rd ed.). Wiley.
+
+Bonneau, J., Herley, C., Van Oorschot, P. C., & Stajano, F. (2012). The quest to replace passwords: A framework for comparative evaluation of web authentication schemes. *IEEE Symposium on Security and Privacy*, 553–567. [https://doi.org/10.1109/SP.2012.44](https://doi.org/10.1109/SP.2012.44)
+
+Hughes, B., & Cotterell, M. (2009). *Software project management* (5th ed.). McGraw-Hill Education.
+
+Stallings, W. (2017). *Cryptography and network security: Principles and practice* (7th ed.). Pearson.
