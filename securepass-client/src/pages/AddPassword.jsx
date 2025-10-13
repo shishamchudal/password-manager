@@ -17,7 +17,7 @@ export default function AddPassword() {
     }
 
     try {
-      const res = await api.post("/vault/create-demo-encrypt", {
+      await api.post("/vault/create-demo-encrypt", {
         label,
         username,
         passwordPlain: password,
