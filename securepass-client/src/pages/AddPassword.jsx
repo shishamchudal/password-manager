@@ -17,12 +17,11 @@ export default function AddPassword() {
     }
 
     try {
-      // Call server endpoint that handles encryption
       const res = await api.post("/vault/create-demo-encrypt", {
         label,
         username,
         passwordPlain: password,
-        masterPassword
+        masterPassword,
       });
 
       alert("Password saved successfully!");
@@ -34,35 +33,73 @@ export default function AddPassword() {
   };
 
   return (
-    <div className="add-password">
-      <h2>Add New Password</h2>
-      <form onSubmit={handleAdd}>
-        <input
-          type="text"
-          placeholder="Label"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Master Password"
-          value={masterPassword}
-          onChange={(e) => setMasterPassword(e.target.value)}
-        />
-        <button type="submit">Save</button>
-      </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+          Add New Password
+        </h2>
+
+        <form onSubmit={handleAdd} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Label
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Gmail, GitHub"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Username
+            </label>
+            <input
+              type="text"
+              placeholder="Enter username or email"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Master Password
+            </label>
+            <input
+              type="password"
+              placeholder="Enter master password"
+              value={masterPassword}
+              onChange={(e) => setMasterPassword(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition duration-200"
+          >
+            Save Password
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
