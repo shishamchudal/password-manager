@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_SERVER_URL || "http://localhost:4000/api",
+  // baseURL: process.env.REACT_APP_SERVER_URL || "http://localhost:4000/api",
+  baseURL: process.env.REACT_APP_SERVER_URL || "https://password-manager-3nra.onrender.com/api",
   withCredentials: true,
 });
 
