@@ -17,7 +17,7 @@ connectDB(process.env.MONGO_URI);
 // Middlewares
 app.use(helmet());
 app.use(cors({
-  origin: 'https://melodious-pothos-008ddd.netlify.app/',
+  origin: 'https://melodious-pothos-008ddd.netlify.app',
   credentials: true
 }));
 app.use(bodyParser.json({ limit: '10kb' }));
